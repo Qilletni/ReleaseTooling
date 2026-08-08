@@ -1,0 +1,76 @@
+name: Bump submodule in Qilletni
+
+# When this repository's `master` advances, open (or refresh) a PR against
+# Qilletni/Qilletni that repoints its `tools/release` submodule at the new
+# commit. The PR is signed by the release GitHub App and (like every other
+# automated PR in this ecosystem) never auto-merges: a maintainer reviews and
+# merges it, at which point every repo's release pipelines pick up the updated
+# tooling.
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-submodule
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    if: github.repository == 'Qilletni/ReleaseTooling'
+    steps:
+      - name: Mint a GitHub App token scoped only to Qilletni/Qilletni
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.QILLETNI_RELEASE_APP_ID }}
+          private-key: ${{ secrets.QILLETNI_RELEASE_APP_PRIVATE_KEY }}
+          owner: Qilletni
+          repositories: Qilletni
+
+      - name: Checkout Qilletni/Qilletni (with submodules)
+        uses: actions/checkout@v4
+        with:
+          repository: Qilletni/Qilletni
+          token: ${{ steps.app-token.outputs.token }}
+          submodules: true
+          path: qilletni
+
+      - name: Point tools/release at this commit
+        working-directory: qilletni
+        run: |
+          git -C tools/release fetch origin
+          git -C tools/release checkout "${{ github.sha }}"
+          if git diff --quiet -- tools/release; then
+            echo "Submodule already at ${{ github.sha }}; nothing to bump."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+        id: point
+
+      - name: Open or refresh the bump PR
+        if: steps.point.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          path: qilletni
+          add-paths: tools/release
+          base: master
+          branch: release-tooling/bump
+          delete-branch: true
+          commit-message: "chore: bump tools/release to ${{ github.sha }}"
+          title: "Bump release tooling to ReleaseTooling@${{ github.sha }}"
+          body: |
+            Automated submodule pointer bump for `tools/release`
+            → [`Qilletni/ReleaseTooling@${{ github.sha }}`](https://github.com/Qilletni/ReleaseTooling/commit/${{ github.sha }}).
+
+            Merging this makes every onboarded repo's release pipelines run the
+            updated tooling. **This PR does not auto-merge** - review and merge it
+            like any other change.
+          labels: release-tooling

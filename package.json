@@ -1,0 +1,27 @@
+{
+  "name": "qilletni-release-tools",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Release automation CLI for the Qilletni ecosystem.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "cli": "node --import tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fast-xml-parser": "^5.10.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.10"
+  }
+}

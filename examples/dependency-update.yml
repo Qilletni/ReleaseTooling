@@ -1,0 +1,34 @@
+# Example local caller workflow for a consumer repository that wants to
+# receive dependency-dispatch notifications for a component listed in its
+# own `.qilletni/release.yml` `dependencies` mapping (see the "Dependency
+# updates" section of the ReleaseTooling `README.md`).
+#
+# Copy this file into the consumer repository's own
+# `.github/workflows/dependency-update.yml`, keeping the exact event type
+# name (`qilletni-dependency-release`, matching the sender in
+# `reusable-dependency-dispatch.yml`) and the exact organization secret names
+# (`QILLETNI_RELEASE_APP_ID` / `QILLETNI_RELEASE_APP_PRIVATE_KEY`).
+#
+# All actual validation/verification/update logic lives centrally in
+# `reusable-dependency-update.yml`; this file only needs to exist so the
+# consumer repository has somewhere to receive the event and pass along its
+# repository-scoped App credentials.
+
+name: Dependency Update
+
+on:
+  repository_dispatch:
+    types: [qilletni-dependency-release]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  update-dependency:
+    uses: Qilletni/Qilletni/.github/workflows/reusable-dependency-update.yml@master
+    with:
+      payload: ${{ toJson(github.event.client_payload) }}
+    secrets:
+      app-id: ${{ secrets.QILLETNI_RELEASE_APP_ID }}
+      app-private-key: ${{ secrets.QILLETNI_RELEASE_APP_PRIVATE_KEY }}
