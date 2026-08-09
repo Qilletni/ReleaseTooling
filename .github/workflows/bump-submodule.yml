@@ -34,7 +34,7 @@ jobs:
           repositories: Qilletni
 
       - name: Checkout Qilletni/Qilletni (with submodules)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Qilletni/Qilletni
           token: ${{ steps.app-token.outputs.token }}

@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "description": "Release automation CLI for the Qilletni ecosystem.",
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "cli": "node --import tsx src/cli.ts",
