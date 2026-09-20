@@ -236,6 +236,44 @@ describe("latestPlatformVersion", () => {
   });
 });
 
+describe("readManifestFields", () => {
+  it("flattens every component's scalar fields", () => {
+    const lines = platformManifest.readManifestFields(platformManifest.parsePlatformManifest(VALID_YAML));
+
+    expect(lines).toEqual([
+      "toolchain_repository=Qilletni/QilletniToolchain",
+      "toolchain_version=1.0.1",
+      "toolchain_tag=v1.0.1",
+      "toolchain_asset=qilletni-1.0.1.tar.gz",
+      "toolchain_sha256=5bf7df3e8804e039b966e5f133324d849e242eac470a33574f54cb931b0c67a2",
+      "toolchain_commit=f1a6b2e02d1f089745e1c4de923565a82dbd3112",
+      "qpm_repository=Qilletni/QPMCLI",
+      "qpm_version=1.0.0",
+      "qpm_tag=v1.0.0",
+      "qpm_asset=qpm-1.0.0.tar.gz",
+      "qpm_sha256=2613973691eb55be95254773621246771b82244454f43c7e8f2741440a7ca0ee",
+      "qpm_commit=d50f8e50b826809b0943344441b749633e8e00f5",
+    ]);
+  });
+
+  it("never emits nested embeds versions, which would collide with the component's own", () => {
+    const lines = platformManifest.readManifestFields(platformManifest.parsePlatformManifest(VALID_YAML));
+
+    expect(lines.filter((line) => line.startsWith("toolchain_version="))).toEqual(["toolchain_version=1.0.1"]);
+    expect(lines.some((line) => line.includes("core") || line.includes("pkgutil"))).toBe(false);
+  });
+
+  it("omits fields a manifest does not declare", () => {
+    const manifest = platformManifest.parsePlatformManifest(VALID_YAML);
+    delete (manifest.components.qpm as Record<string, unknown>).commit;
+
+    const lines = platformManifest.readManifestFields(manifest);
+
+    expect(lines).toContain("toolchain_commit=f1a6b2e02d1f089745e1c4de923565a82dbd3112");
+    expect(lines.some((line) => line.startsWith("qpm_commit="))).toBe(false);
+  });
+});
+
 describe("verifyLiveAssetProvenance", () => {
   it("has no errors when sha256 matches the live release", async () => {
     const m = manifest();

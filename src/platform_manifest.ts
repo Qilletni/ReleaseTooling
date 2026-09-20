@@ -251,6 +251,30 @@ export function latestPlatformVersion(filenames: string[]): string | null {
   return best !== null ? semver.toStringVersion(best) : null;
 }
 
+/** The scalar (non-`embeds`) per-component fields, in a stable output order. */
+const READABLE_FIELDS = ["repository", "version", "tag", "asset", "sha256", "commit"] as const;
+
+/**
+ * Flattens a manifest's components into `<component>_<field>=<value>` lines.
+ *
+ * Exists so a caller that cannot parse YAML can still read a manifest
+ * field-by-field. The Qilletni CLI installer (`install/install.sh`) parses
+ * manifests in POSIX sh, and its CI diffs its own parser's output against this
+ * one, so a silently mis-parsed value cannot reach an install.
+ */
+export function readManifestFields(manifest: Json): string[] {
+  const lines: string[] = [];
+
+  for (const [name, component] of Object.entries(manifest.components ?? {}) as [string, Json][]) {
+    for (const field of READABLE_FIELDS) {
+      const value = component[field];
+      if (value !== undefined && value !== null) lines.push(`${name}_${field}=${String(value)}`);
+    }
+  }
+
+  return lines;
+}
+
 /**
  * Re-verifies each component's declared `asset`/`sha256` against its live
  * GitHub release.

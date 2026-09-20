@@ -22,6 +22,27 @@ export type JapicmpPolicy = (typeof SUPPORTED_POLICIES)[number];
 
 const ELEMENT_TAGS = new Set(["class", "interface", "superclass", "method", "constructor", "field", "annotation"]);
 
+/**
+ * fast-xml-parser >= 5.10 hard-rejects elements named `__proto__`,
+ * `constructor` or `prototype` as a prototype-pollution guard, throwing
+ * before the document is parsed at all. japicmp legitimately emits
+ * `<constructor>` elements for every compared constructor, so any report
+ * covering a class with constructors would abort the whole policy check.
+ *
+ * `transformTagName` runs before that guard, so reserved tags are renamed on
+ * the way in and mapped back before a finding is matched or described.
+ */
+const RESERVED_TAG_PREFIX = "japicmp__";
+const RESERVED_TAGS = new Set(["__proto__", "constructor", "prototype"]);
+
+function toSafeTag(tag: string): string {
+  return RESERVED_TAGS.has(tag) ? `${RESERVED_TAG_PREFIX}${tag}` : tag;
+}
+
+function fromSafeTag(tag: string): string {
+  return tag.startsWith(RESERVED_TAG_PREFIX) ? tag.slice(RESERVED_TAG_PREFIX.length) : tag;
+}
+
 export interface Findings {
   additive: string[];
   breaking: string[];
@@ -48,7 +69,7 @@ function attrString(element: XmlElement, name: string, defaultValue: string): st
 
 /** Walks a japicmp XML report, classifying each changed member as additive or breaking. */
 export function parseReport(xmlText: string): Findings {
-  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", transformTagName: toSafeTag });
   const root = parser.parse(xmlText);
 
   const additive: string[] = [];
@@ -64,15 +85,17 @@ export function parseReport(xmlText: string): Findings {
       for (const item of items) {
         if (item === null || typeof item !== "object") continue;
 
-        if (ELEMENT_TAGS.has(tag)) {
+        const elementTag = fromSafeTag(tag);
+
+        if (ELEMENT_TAGS.has(elementTag)) {
           const changeStatus = attrString(item, "changeStatus", "UNCHANGED");
           const binaryCompatible = attrBool(item, "binaryCompatible", true);
           const sourceCompatible = attrBool(item, "sourceCompatible", true);
 
           if (!binaryCompatible || !sourceCompatible) {
-            breaking.push(describe(tag, item));
+            breaking.push(describe(elementTag, item));
           } else if (changeStatus === "NEW") {
-            additive.push(describe(tag, item));
+            additive.push(describe(elementTag, item));
           }
         }
 

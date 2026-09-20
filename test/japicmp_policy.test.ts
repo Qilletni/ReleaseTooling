@@ -40,7 +40,67 @@ const BREAKING_CHANGE = `
 </japicmp>
 `;
 
+// japicmp emits a <constructor> element per compared constructor. fast-xml-parser
+// rejects that tag name outright unless it is renamed before parsing, so a report
+// shaped like this one used to abort the entire policy check.
+const UNCHANGED_CONSTRUCTOR = `
+<japicmp>
+  <classes>
+    <class fullyQualifiedName="dev.qilletni.api.Foo" changeStatus="UNCHANGED"
+           binaryCompatible="true" sourceCompatible="true">
+      <constructors>
+        <constructor name="Foo" changeStatus="UNCHANGED" binaryCompatible="true" sourceCompatible="true"/>
+      </constructors>
+    </class>
+  </classes>
+</japicmp>
+`;
+
+const REMOVED_CONSTRUCTOR = `
+<japicmp>
+  <classes>
+    <class fullyQualifiedName="dev.qilletni.api.Foo" changeStatus="MODIFIED"
+           binaryCompatible="true" sourceCompatible="true">
+      <constructors>
+        <constructor name="Foo" changeStatus="REMOVED" binaryCompatible="false" sourceCompatible="false"/>
+      </constructors>
+    </class>
+  </classes>
+</japicmp>
+`;
+
+const NEW_CONSTRUCTOR = `
+<japicmp>
+  <classes>
+    <class fullyQualifiedName="dev.qilletni.api.Foo" changeStatus="MODIFIED"
+           binaryCompatible="true" sourceCompatible="true">
+      <constructors>
+        <constructor name="Foo" changeStatus="NEW" binaryCompatible="true" sourceCompatible="true"/>
+      </constructors>
+    </class>
+  </classes>
+</japicmp>
+`;
+
 describe("parseReport", () => {
+  it("parses a report containing <constructor> elements", () => {
+    const findings = japicmpPolicy.parseReport(UNCHANGED_CONSTRUCTOR);
+    expect(findings.additive).toEqual([]);
+    expect(findings.breaking).toEqual([]);
+  });
+
+  it("detects a removed constructor as breaking and names it as a constructor", () => {
+    const findings = japicmpPolicy.parseReport(REMOVED_CONSTRUCTOR);
+    expect(findings.additive).toEqual([]);
+    expect(findings.breaking).toEqual(["constructor 'Foo'"]);
+  });
+
+  it("detects a new constructor as additive", () => {
+    const findings = japicmpPolicy.parseReport(NEW_CONSTRUCTOR);
+    expect(findings.additive).toEqual(["constructor 'Foo'"]);
+    expect(findings.breaking).toEqual([]);
+  });
+
   it("finds no findings when there are no changes", () => {
     const findings = japicmpPolicy.parseReport(NO_CHANGES);
     expect(findings.additive).toEqual([]);

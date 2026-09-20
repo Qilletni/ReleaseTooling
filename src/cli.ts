@@ -115,6 +115,17 @@ program
   );
 
 program
+  .command("read-platform-manifest")
+  .description("Print each component's repository/version/tag/asset/sha256/commit as <component>_<field>=<value>")
+  .requiredOption("--manifest <path>")
+  .action(
+    action((opts: { manifest: string }) => {
+      const manifest = platformManifest.loadPlatformManifest(opts.manifest);
+      for (const line of platformManifest.readManifestFields(manifest)) console.log(line);
+    })
+  );
+
+program
   .command("verify-platform-manifest-commits")
   .description("Re-verify each component's tag still dereferences to its declared commit (live GitHub API)")
   .requiredOption("--manifest <path>")
